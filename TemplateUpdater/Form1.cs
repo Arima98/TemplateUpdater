@@ -6,8 +6,8 @@ namespace TemplateUpdater
 {
     public partial class Form1 : Form
     {
-        private string tempDir; 
-        private string rutaSalidaZip; 
+        private string tempDir;
+        private string rutaSalidaZip;
 
         public Form1()
         {
@@ -109,15 +109,14 @@ namespace TemplateUpdater
                 await Task.Run(() =>
                 {
                     // --- 1. Reemplazar contenido DENTRO de los archivos ---
+                    // (Esta parte sigue usando el reemplazo de subcadenas)
                     var allFiles = Directory.GetFiles(tempDir, "*.*", SearchOption.AllDirectories);
                     foreach (string file in allFiles)
                     {
                         string content = File.ReadAllText(file);
-                        foreach (var regla in reglas)
-                        {
-                            content = content.Replace(regla.Key, regla.Value);
-                        }
-                        File.WriteAllText(file, content);
+                        // ¡CAMBIO! Usa la función 'AplicarReglas' (plural) para el contenido
+                        string newContent = AplicarReglas(content, reglas);
+                        File.WriteAllText(file, newContent);
                     }
 
                     // --- 2. Renombrar los NOMBRES de archivos ---
@@ -125,8 +124,9 @@ namespace TemplateUpdater
                     foreach (string file in allFiles)
                     {
                         string nombreArchivo = Path.GetFileName(file);
-                        string nuevoNombre = nombreArchivo;
-                        foreach (var regla in reglas) { nuevoNombre = nuevoNombre.Replace(regla.Key, regla.Value); }
+
+                        // ¡CAMBIO! Usa 'AplicarReglaExacta' para el nombre
+                        string nuevoNombre = AplicarReglaExacta(nombreArchivo, reglas);
 
                         if (nombreArchivo != nuevoNombre)
                         {
@@ -141,8 +141,9 @@ namespace TemplateUpdater
                     foreach (string dir in sortedDirs)
                     {
                         string nombreDir = Path.GetFileName(dir);
-                        string nuevoNombre = nombreDir;
-                        foreach (var regla in reglas) { nuevoNombre = nuevoNombre.Replace(regla.Key, regla.Value); }
+
+                        // ¡CAMBIO! Usa 'AplicarReglaExacta' para el nombre
+                        string nuevoNombre = AplicarReglaExacta(nombreDir, reglas);
 
                         if (nombreDir != nuevoNombre)
                         {
@@ -176,10 +177,7 @@ namespace TemplateUpdater
 
         private void dgvReglas_CellValueChanged(object sender, DataGridViewCellEventArgs e)
         {
-            // Solo actualiza si hay un ZIP cargado
             if (string.IsNullOrEmpty(tempDir)) return;
-
-            // Llama a la función que actualiza el árbol de vista previa
             ActualizarVistaPrevia();
         }
 
@@ -190,9 +188,9 @@ namespace TemplateUpdater
 
         // --- FUNCIONES DE AYUDA (HELPERS) ---
 
+         
         private void ActualizarVistaPrevia()
         {
-            // 1. Obtener todas las reglas de la cuadrícula
             var reglas = new Dictionary<string, string>();
             foreach (DataGridViewRow row in dgvReglas.Rows)
             {
@@ -204,11 +202,7 @@ namespace TemplateUpdater
                     reglas.Add(original, nuevo);
                 }
             }
-
-            // 2. Limpiar y recargar el árbol
             tvPreview.Nodes.Clear();
-
-            // 3. Llamar a la función recursiva que crea el árbol
             CargarArbolPreview(tempDir, tvPreview.Nodes, reglas);
             tvPreview.ExpandAll();
         }
@@ -221,8 +215,9 @@ namespace TemplateUpdater
                 foreach (string dir in Directory.GetDirectories(directorio))
                 {
                     string nombreDir = Path.GetFileName(dir);
-                    string nombreNuevo = nombreDir;
-                    foreach (var regla in reglas) { nombreNuevo = nombreNuevo.Replace(regla.Key, regla.Value); }
+
+                    // ¡CAMBIO! Usa 'AplicarReglaExacta' para la vista previa
+                    string nombreNuevo = AplicarReglaExacta(nombreDir, reglas);
 
                     TreeNode nodo = new TreeNode(nombreNuevo);
                     nodosPadre.Add(nodo);
@@ -233,8 +228,9 @@ namespace TemplateUpdater
                 foreach (string file in Directory.GetFiles(directorio))
                 {
                     string nombreArchivo = Path.GetFileName(file);
-                    string nombreNuevo = nombreArchivo;
-                    foreach (var regla in reglas) { nombreNuevo = nombreNuevo.Replace(regla.Key, regla.Value); }
+
+                    // ¡CAMBIO! Usa 'AplicarReglaExacta' para la vista previa
+                    string nombreNuevo = AplicarReglaExacta(nombreArchivo, reglas);
 
                     nodosPadre.Add(new TreeNode(nombreNuevo));
                 }
@@ -248,6 +244,29 @@ namespace TemplateUpdater
             {
                 Directory.Delete(tempDir, true); // true = borrado recursivo
             }
+        }
+
+        // --- FUNCIONES DE LÓGICA DE REEMPLAZO ---
+
+        // (Esta se usa para el CONTENIDO INTERNO de los archivos)
+        private string AplicarReglas(string texto, Dictionary<string, string> reglas)
+        {
+            foreach (var regla in reglas)
+            {
+                texto = texto.Replace(regla.Key, regla.Value);
+            }
+            return texto;
+        }
+
+ 
+        // (Esta se usa para NOMBRES de archivos y carpetas)
+        // Reemplaza SOLO si el nombre es una COINCIDENCIA EXACTA.
+        private string AplicarReglaExacta(string nombreOriginal, Dictionary<string, string> reglas)
+        {
+            // Busca el nombre original en el diccionario de reglas.
+            // Si lo encuentra, devuelve el valor (nuevoNombre).
+            // Si no lo encuentra, devuelve el nombreOriginal sin cambios.
+            return reglas.TryGetValue(nombreOriginal, out string nuevoNombre) ? nuevoNombre : nombreOriginal;
         }
     }
 }
